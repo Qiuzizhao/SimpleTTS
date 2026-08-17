@@ -20,11 +20,13 @@ html { font-size: 18px; }
 
 body {
   font-family: "Microsoft YaHei", "PingFang SC", "Noto Sans SC", system-ui, sans-serif;
-  background: var(--bg);
+  background: linear-gradient(180deg, #f6f9f7 0%, #eef3f0 100%);
   color: var(--text);
   line-height: 1.55;
   -webkit-text-size-adjust: 100%;
 }
+
+::selection { background: rgba(14, 138, 95, .25); }
 
 /* ---------- 顶部 ---------- */
 
@@ -153,6 +155,18 @@ textarea:focus {
 }
 .btn:active { transform: scale(.97); }
 
+/* 键盘操作可见焦点（触屏无影响） */
+.btn:focus-visible,
+.btn-edit:focus-visible,
+.btn-add:focus-visible,
+.phrase-chip .phrase-btn:focus-visible,
+.phrase-chip .del:focus-visible,
+.input-clear:focus-visible,
+.btn-link:focus-visible {
+  outline: 3px solid rgba(14, 138, 95, .45);
+  outline-offset: 2px;
+}
+
 .btn-speak {
   width: 100%;
   min-height: 68px;
@@ -242,13 +256,14 @@ textarea:focus {
   border-radius: 999px;
   background: #fff;
   overflow: hidden;
+  box-shadow: 0 1px 2px rgba(10, 60, 45, .06);
   transition: transform .12s, box-shadow .12s, background .12s;
   -webkit-tap-highlight-color: transparent;
 }
 .phrase-chip:hover {
   background: var(--primary-soft);
   transform: translateY(-1px);
-  box-shadow: 0 3px 8px rgba(10, 125, 82, .16);
+  box-shadow: 0 4px 10px rgba(10, 125, 82, .16);
 }
 .phrase-chip:active { transform: scale(.95); }
 .phrase-chip.speaking {
@@ -258,10 +273,12 @@ textarea:focus {
 .phrase-chip .phrase-btn {
   font: inherit;
   font-size: 1rem;
+  font-weight: 600;
+  text-align: left; /* 关键：左对齐，避免文字偏右 */
   color: var(--primary-2);
   background: none;
   border: none;
-  padding: 10px 6px 10px 16px;
+  padding: 11px 18px;
   cursor: pointer;
   min-height: 44px;
   -webkit-tap-highlight-color: transparent;
