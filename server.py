@@ -38,7 +38,7 @@ from fastapi.staticfiles import StaticFiles
 HOST = os.environ.get("HOST", "127.0.0.1")
 PORT = int(os.environ.get("PORT", "8000"))
 
-DEFAULT_VOICE = "zh-CN-XiaoxiaoNeural"
+DEFAULT_VOICE = "zh-CN-XiaoyiNeural"
 MAX_TEXT = 500
 CACHE_LIMIT = 256
 MAX_PHRASES = 200
@@ -107,7 +107,8 @@ async def list_voices():
     return {
         "default": DEFAULT_VOICE,
         "list": [
-            {"id": "zh-CN-XiaoxiaoNeural", "name": "晓晓（女声 · 推荐）"},
+            {"id": "zh-CN-XiaoyiNeural", "name": "晓伊（女声 · 推荐）"},
+            {"id": "zh-CN-XiaoxiaoNeural", "name": "晓晓（女声）"},
             {"id": "zh-CN-YunxiNeural", "name": "云希（男声）"},
             {"id": "zh-CN-XiaoyiNeural", "name": "晓伊（女声）"},
             {"id": "zh-CN-YunjianNeural", "name": "云健（男声）"},

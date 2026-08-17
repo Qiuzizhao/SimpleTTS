@@ -1,10 +1,10 @@
-/* SimpleTTS 前端逻辑 v3：edge-tts（晓晓）优先，浏览器语音兜底，自动恢复
+/* SimpleTTS 前端逻辑 v3：edge-tts（默认晓伊）优先，浏览器语音兜底，自动恢复
  *
  * v3 交互：
  * - 主按钮"朗读 ⇄ 停止"一键切换，播放中显示正在朗读的内容条
  * - 输入框一键清空、Esc 停止、添加短语后自动聚焦
  * - 空短语列表提示
- * v2 能力保留：自动恢复晓晓、播放失败重试、防抖保存与预热、参数变更重预热
+ * v2 能力保留：自动恢复网络语音、播放失败重试、防抖保存与预热、参数变更重预热
  */
 (function () {
   "use strict";
@@ -33,6 +33,21 @@
   const RETRY_MS         = 8000;  // 服务重连周期
   const PUSH_DEBOUNCE_MS = 500;   // 短语保存防抖
   const REWARM_DEBOUNCE_MS = 800; // 参数调整后重新预热防抖
+
+  // 音色 ID → 显示名（状态角标用）
+  const VOICE_NAMES = {
+    "zh-CN-XiaoyiNeural": "晓伊",
+    "zh-CN-XiaoxiaoNeural": "晓晓",
+    "zh-CN-YunxiNeural": "云希",
+    "zh-CN-YunjianNeural": "云健",
+    "zh-CN-YunyangNeural": "云扬",
+    "zh-CN-YunxiaNeural": "云夏",
+  };
+
+  function currentVoiceName() {
+    const v = localStorage.getItem(VOICE_KEY) || "zh-CN-XiaoyiNeural";
+    return VOICE_NAMES[v] || v;
+  }
 
   let mode = "waiting";     // waiting | edge | local
   let isSpeaking = false;   // 是否正在朗读
@@ -99,15 +114,15 @@
       .finally(() => clearTimeout(timer));
   }
 
-  // 连接可用：切回晓晓 + 与服务端对账短语 + 预热
+  // 连接可用：切回网络语音通道（音色按用户选择）+ 与服务端对账短语 + 预热
   function onEdge() {
-    setMode("edge", "晓晓语音 ✓");
+    setMode("edge", currentVoiceName() + "语音 ✓");
     statusEl.removeAttribute("title");
     initPhrasesFromServer();
     warmPhrases(phrases);
   }
 
-  // 进入本地模式时启动周期探测，服务恢复后自动切回晓晓
+  // 进入本地模式时启动周期探测，服务恢复后自动切回网络语音
   function startRecovery() {
     if (retryTimer) return;
     retryTimer = setInterval(() => {
@@ -149,7 +164,7 @@
 
   // 生成 /api/tts 的 URL（文本+音色+语速+音量 → 同一 URL 永远同一段音频，可被浏览器缓存）
   function ttsUrl(text) {
-    const voice = localStorage.getItem(VOICE_KEY) || "zh-CN-XiaoxiaoNeural";
+    const voice = localStorage.getItem(VOICE_KEY) || "zh-CN-XiaoyiNeural";
     return "/api/tts?text=" + encodeURIComponent(text) +
       "&voice=" + encodeURIComponent(voice) +
       "&rate=" + encodeURIComponent(pct(parseFloat(rateEl.value) - 1)) +
@@ -167,7 +182,7 @@
       if (fellBack) return;
       fellBack = true;
       setMode("local", "已降级为本地语音");
-      statusEl.title = "晓晓通道不可用，已切换本机语音；每 8 秒自动重试恢复";
+      statusEl.title = "网络语音通道不可用，已切换本机语音；每 8 秒自动重试恢复";
       startRecovery();
       playLocal(text);
     };
@@ -346,7 +361,7 @@
 
   function initVoices() {
     voiceSel.innerHTML =
-      '<option value="zh-CN-XiaoxiaoNeural">晓晓（女声 · 推荐）</option>';
+      '<option value="zh-CN-XiaoyiNeural">晓伊（女声 · 推荐）</option>';
     const saved = localStorage.getItem(VOICE_KEY);
     if (saved) voiceSel.value = saved;
     fetch("/api/voices")
@@ -368,7 +383,7 @@
       if (ok) { onEdge(); return; }
       if (viaFile) {
         setMode("local", "本机语音模式");
-        statusEl.title = "当前是直接打开 index.html 文件。要使用晓晓神经语音，请运行 start.bat 后访问 http://localhost:8000";
+        statusEl.title = "当前是直接打开 index.html 文件。要使用晓伊等网络语音，请运行 start.bat 后访问 http://localhost:8000";
       } else {
         setMode("local", "本机语音（等待服务…）");
         statusEl.title = "未检测到本地语音服务，每 8 秒自动重试；也可运行 start.bat 启动";
@@ -425,6 +440,7 @@
 
   voiceSel.addEventListener("change", () => {
     localStorage.setItem(VOICE_KEY, voiceSel.value);
+    if (mode === "edge") setMode("edge", currentVoiceName() + "语音 ✓");
     scheduleRewarm();
   });
 
