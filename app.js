@@ -21,7 +21,6 @@
   const phrasesEmpty = $("phrasesEmpty");
   const phraseInput  = $("phraseInput");
   const addPhraseBtn = $("addPhraseBtn");
-  const resetPhrasesBtn = $("resetPhrasesBtn");
   const editBtn     = $("editBtn");
   const phrasesHint = $("phrasesHint");
   const undoToast   = $("undoToast");
@@ -383,17 +382,6 @@
     renderPhrases();
   }
 
-  function resetPhrases() {
-    if (!confirm("确定恢复默认短语吗？当前列表将被替换。")) return;
-    stop();
-    phrases = [...DEFAULT_PHRASES];
-    edited = true;
-    persistLocal(phrases);
-    pushToServer(phrases);
-    renderPhrases();
-    warmPhrases(phrases);
-  }
-
   /* ---------- 常用语语音预热 ---------- */
 
   // 后台拉取常用语音频（浏览器按缓存头保存），之后点击同一短语秒出。
@@ -480,7 +468,6 @@
   phraseInput.addEventListener("keydown", (e) => {
     if (e.key === "Enter") { e.preventDefault(); addPhrase(); }
   });
-  resetPhrasesBtn.addEventListener("click", resetPhrases);
   editBtn.addEventListener("click", toggleEdit);
   undoBtn.addEventListener("click", undoDelete);
 

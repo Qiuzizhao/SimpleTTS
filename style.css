@@ -325,20 +325,6 @@ textarea:focus {
 }
 .btn-add:hover { background: var(--primary-2); }
 
-.edit-actions { margin-top: 10px; text-align: right; }
-.btn-link {
-  background: none;
-  border: none;
-  color: var(--primary-2);
-  text-decoration: underline;
-  font: inherit;
-  font-size: .88rem;
-  cursor: pointer;
-  padding: 4px 2px;
-  -webkit-tap-highlight-color: transparent;
-}
-.btn-link:hover { color: var(--primary); }
-
 /* 语音设置 */
 .settings { display: flex; flex-direction: column; gap: 14px; }
 .setting { display: flex; align-items: center; gap: 12px; }
