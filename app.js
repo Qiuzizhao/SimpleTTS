@@ -312,10 +312,9 @@
     phrases.forEach((p) => phrasesEl.appendChild(makePhraseChip(p)));
     phrasesEl.classList.toggle("editing", editMode);
     phrasesEmpty.hidden = phrases.length > 0;
-    phrasesHint.hidden = phrases.length === 0;
-    phrasesHint.textContent = editMode
-      ? "点击 ✕ 删除短语，点「完成」结束编辑"
-      : "点击短语即可朗读";
+    // 提示只在编辑模式下显示
+    phrasesHint.hidden = !editMode || phrases.length === 0;
+    phrasesHint.textContent = "点击 ✕ 删除短语，点「完成」结束编辑";
   }
 
   function addPhrase() {
