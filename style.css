@@ -351,13 +351,6 @@ textarea:focus {
   box-shadow: 0 0 0 4px rgba(14, 138, 95, .14);
 }
 
-.footnote {
-  text-align: center;
-  color: var(--muted);
-  font-size: .82rem;
-  line-height: 1.7;
-}
-
 /* 删除撤销提示条 */
 .undo-toast {
   position: fixed;
