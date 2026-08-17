@@ -22,6 +22,11 @@
   const phraseInput  = $("phraseInput");
   const addPhraseBtn = $("addPhraseBtn");
   const resetPhrasesBtn = $("resetPhrasesBtn");
+  const editBtn     = $("editBtn");
+  const phrasesHint = $("phrasesHint");
+  const undoToast   = $("undoToast");
+  const undoText    = $("undoText");
+  const undoBtn     = $("undoBtn");
   const rateEl       = $("rate");
   const rateVal      = $("rateVal");
   const volumeEl     = $("volume");
@@ -61,6 +66,9 @@
   // 常用短语：服务端持久化（多设备同步）+ 本地 localStorage 离线备份
   let phrases = [];
   let edited = false; // 服务端列表返回前本地是否已改动
+  let editMode = false;   // 短语编辑模式（默认隐藏删除按钮，防误触）
+  let lastDeleted = null; // 最近删除的短语 {text, index}，用于撤销
+  let undoTimer = null;   // 撤销提示自动消失定时器
 
   /* ---------- 工具 ---------- */
 
@@ -278,6 +286,7 @@
     t.className = "phrase-btn";
     t.textContent = p;
     t.addEventListener("click", () => {
+      if (editMode) return; // 编辑模式下不朗读，专注管理，防误触
       speak(p);
       currentEl = wrap;
       wrap.classList.add("speaking");
@@ -302,7 +311,12 @@
   function renderPhrases() {
     phrasesEl.innerHTML = "";
     phrases.forEach((p) => phrasesEl.appendChild(makePhraseChip(p)));
+    phrasesEl.classList.toggle("editing", editMode);
     phrasesEmpty.hidden = phrases.length > 0;
+    phrasesHint.hidden = phrases.length === 0;
+    phrasesHint.textContent = editMode
+      ? "点击 ✕ 删除短语，点「完成」结束编辑"
+      : "点击短语即可朗读";
   }
 
   function addPhrase() {
@@ -321,11 +335,51 @@
   }
 
   function removePhrase(p) {
+    const idx = phrases.indexOf(p);
+    if (idx === -1) return;
     if (isSpeaking && currentEl && currentEl.textContent.includes(p)) stop();
-    phrases = phrases.filter((x) => x !== p);
+    phrases.splice(idx, 1);
+    lastDeleted = { text: p, index: idx };
     edited = true;
     persistLocal(phrases);
     pushToServer(phrases);
+    renderPhrases();
+    showUndo();
+  }
+
+  // 删除撤销：底部提示条，4 秒内可恢复
+  function showUndo() {
+    if (!lastDeleted) return;
+    undoText.textContent = "已删除「" + lastDeleted.text + "」";
+    undoToast.hidden = false;
+    clearTimeout(undoTimer);
+    undoTimer = setTimeout(hideUndo, 4000);
+  }
+
+  function hideUndo() {
+    undoToast.hidden = true;
+    clearTimeout(undoTimer);
+  }
+
+  function undoDelete() {
+    if (!lastDeleted) return;
+    const { text, index } = lastDeleted;
+    lastDeleted = null;
+    if (!phrases.includes(text)) {
+      phrases.splice(Math.min(index, phrases.length), 0, text);
+      edited = true;
+      persistLocal(phrases);
+      pushToServer(phrases);
+      renderPhrases();
+    }
+    hideUndo();
+  }
+
+  // 编辑模式开关：默认界面无删除按钮，编辑态才显示 ✕
+  function toggleEdit() {
+    editMode = !editMode;
+    editBtn.textContent = editMode ? "完成" : "编辑";
+    editBtn.classList.toggle("editing", editMode);
     renderPhrases();
   }
 
@@ -427,6 +481,8 @@
     if (e.key === "Enter") { e.preventDefault(); addPhrase(); }
   });
   resetPhrasesBtn.addEventListener("click", resetPhrases);
+  editBtn.addEventListener("click", toggleEdit);
+  undoBtn.addEventListener("click", undoDelete);
 
   // 语速/音量：拖动实时显示数值，松手（change）后防抖重新预热
   rateEl.addEventListener("input", () => {

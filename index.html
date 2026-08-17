@@ -33,7 +33,11 @@
   <button id="speakBtn" class="btn btn-speak" type="button">🔊 朗读</button>
 
   <section class="card">
-    <h2><span aria-hidden="true">💬</span> 常用短语 · 点击朗读</h2>
+    <div class="card-header">
+      <h2><span aria-hidden="true">💬</span> 常用短语</h2>
+      <button id="editBtn" class="btn-edit" type="button">编辑</button>
+    </div>
+    <p id="phrasesHint" class="phrases-hint">点击短语即可朗读</p>
     <div id="phrases" class="phrases"></div>
     <p id="phrasesEmpty" class="phrases-empty" hidden>还没有短语，下面添加一条吧～</p>
     <div class="edit-row">
@@ -66,6 +70,12 @@
   </section>
 
   <p class="footnote">联网时使用微软"晓伊"神经语音；断网自动切换本机语音。<br>常用短语保存在服务端（多设备同步），离线时自动使用本机备份；语音缓存于本机，重复朗读秒出。</p>
+
+  <!-- 删除撤销提示 -->
+  <div id="undoToast" class="undo-toast" role="status" aria-live="polite" hidden>
+    <span id="undoText">已删除</span>
+    <button id="undoBtn" class="undo-btn" type="button">撤销</button>
+  </div>
 
 </main>
 

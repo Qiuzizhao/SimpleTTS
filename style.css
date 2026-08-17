@@ -188,6 +188,44 @@ textarea:focus {
   margin-bottom: 12px;
 }
 
+/* 卡片标题行（标题 + 编辑开关） */
+.card-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 10px;
+  margin-bottom: 10px;
+}
+.card-header h2 { margin-bottom: 0; }
+
+.btn-edit {
+  flex: none;
+  border: 1.5px solid var(--primary);
+  color: var(--primary-2);
+  background: #fff;
+  font: inherit;
+  font-size: .86rem;
+  font-weight: 700;
+  padding: 6px 18px;
+  min-height: 38px; /* 触控目标 ≥ 38px */
+  border-radius: 999px;
+  cursor: pointer;
+  -webkit-tap-highlight-color: transparent;
+  transition: background .12s, color .12s;
+}
+.btn-edit:hover { background: var(--primary-soft); }
+.btn-edit.editing {
+  background: var(--primary);
+  color: #fff;
+  border-color: var(--primary);
+}
+
+.phrases-hint {
+  color: var(--muted);
+  font-size: .84rem;
+  margin-bottom: 10px;
+}
+
 /* 常用短语 */
 .phrases { display: flex; flex-wrap: wrap; gap: 10px; }
 
@@ -229,19 +267,32 @@ textarea:focus {
   -webkit-tap-highlight-color: transparent;
 }
 .phrase-chip.speaking .phrase-btn { color: #fff; }
+/* 删除按钮：默认隐藏，仅在编辑模式下出现（防误触） */
 .phrase-chip .del {
+  display: none;
   border: none;
-  background: none;
   cursor: pointer;
-  color: #b9c4bf;
+  color: var(--danger);
+  background: rgba(214, 69, 69, .08);
   font: inherit;
-  font-size: .85rem;
-  padding: 0 12px 0 6px;
+  font-size: 1rem;
+  width: 42px; /* 大触控目标 */
+  align-self: stretch;
   -webkit-tap-highlight-color: transparent;
-  transition: color .12s;
 }
-.phrase-chip:hover .del { color: var(--danger); }
-.phrase-chip.speaking .del { color: #ffd9d2; }
+.phrase-chip .del:active { background: rgba(214, 69, 69, .2); }
+
+/* 编辑模式：红框提示 + 显示删除按钮 + 禁朗读 */
+.phrases.editing .phrase-chip {
+  border-color: var(--danger);
+  background: #fff8f7;
+}
+.phrases.editing .phrase-chip:hover {
+  background: #fdecea;
+  box-shadow: 0 3px 8px rgba(214, 69, 69, .14);
+}
+.phrases.editing .phrase-chip .phrase-btn { color: var(--text); }
+.phrases.editing .phrase-chip .del { display: inline-flex; align-items: center; justify-content: center; }
 
 @keyframes pulse {
   0%, 100% { box-shadow: 0 0 0 0 rgba(14, 138, 95, .45); }
@@ -320,6 +371,39 @@ textarea:focus {
   font-size: .82rem;
   line-height: 1.7;
 }
+
+/* 删除撤销提示条 */
+.undo-toast {
+  position: fixed;
+  left: 50%;
+  bottom: 28px;
+  transform: translateX(-50%);
+  display: flex;
+  align-items: center;
+  gap: 14px;
+  max-width: 92vw;
+  background: rgba(28, 35, 33, .93);
+  color: #fff;
+  padding: 12px 18px;
+  border-radius: 12px;
+  font-size: .92rem;
+  box-shadow: 0 8px 24px rgba(0, 0, 0, .28);
+  z-index: 50;
+}
+.undo-toast[hidden] { display: none; }
+.undo-btn {
+  background: none;
+  border: none;
+  color: #7fd8b2;
+  font: inherit;
+  font-size: .95rem;
+  font-weight: 700;
+  cursor: pointer;
+  white-space: nowrap;
+  padding: 4px 8px;
+  -webkit-tap-highlight-color: transparent;
+}
+.undo-btn:active { color: #b6ecd4; }
 
 @media (max-width: 480px) {
   html { font-size: 16px; }
