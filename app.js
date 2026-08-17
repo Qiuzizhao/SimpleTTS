@@ -38,7 +38,7 @@
   const PUSH_DEBOUNCE_MS = 500;   // 短语保存防抖
   const REWARM_DEBOUNCE_MS = 800; // 参数调整后重新预热防抖
 
-  // 音色 ID → 显示名（状态角标用）
+  // 音色 ID → 显示名（状态角标用）；"local" 表示本机合成
   const VOICE_NAMES = {
     "zh-CN-XiaoyiNeural": "晓伊",
     "zh-CN-XiaoxiaoNeural": "晓晓",
@@ -46,10 +46,17 @@
     "zh-CN-YunjianNeural": "云健",
     "zh-CN-YunyangNeural": "云扬",
     "zh-CN-YunxiaNeural": "云夏",
+    "local": "本地",
   };
 
+  const LOCAL_OPTION = '<option value="local">本地语音（本机合成）</option>';
+
+  function currentVoiceId() {
+    return localStorage.getItem(VOICE_KEY) || "zh-CN-XiaoyiNeural";
+  }
+
   function currentVoiceName() {
-    const v = localStorage.getItem(VOICE_KEY) || "zh-CN-XiaoyiNeural";
+    const v = currentVoiceId();
     return VOICE_NAMES[v] || v;
   }
 
@@ -123,6 +130,10 @@
 
   // 连接可用：切回网络语音通道（音色按用户选择）+ 与服务端对账短语 + 预热
   function onEdge() {
+    if (currentVoiceId() === "local") {
+      setMode("local", "本地语音"); // 用户已显式选择本地，不自动切回网络
+      return;
+    }
     setMode("edge", currentVoiceName() + "语音 ✓");
     statusEl.removeAttribute("title");
     initPhrasesFromServer();
@@ -171,7 +182,8 @@
 
   // 生成 /api/tts 的 URL（文本+音色+语速+音量 → 同一 URL 永远同一段音频，可被浏览器缓存）
   function ttsUrl(text) {
-    const voice = localStorage.getItem(VOICE_KEY) || "zh-CN-XiaoyiNeural";
+    const saved = localStorage.getItem(VOICE_KEY);
+    const voice = saved && saved !== "local" ? saved : "zh-CN-XiaoyiNeural";
     return "/api/tts?text=" + encodeURIComponent(text) +
       "&voice=" + encodeURIComponent(voice) +
       "&rate=" + encodeURIComponent(pct(parseFloat(rateEl.value) - 1)) +
@@ -212,6 +224,7 @@
     if (!text) return;
     stop(); // 停掉上一句并清除旧状态
     setSpeaking(true, text); // 乐观显示"正在朗读"
+    if (currentVoiceId() === "local") { playLocal(text); return; } // 用户明确选择本地合成
     if (mode === "edge") playEdge(text, false);
     else playLocal(text);
   }
@@ -402,7 +415,7 @@
 
   function initVoices() {
     voiceSel.innerHTML =
-      '<option value="zh-CN-XiaoyiNeural">晓伊（女声 · 推荐）</option>';
+      '<option value="zh-CN-XiaoyiNeural">晓伊（女声 · 推荐）</option>' + LOCAL_OPTION;
     const saved = localStorage.getItem(VOICE_KEY);
     if (saved) voiceSel.value = saved;
     fetch("/api/voices")
@@ -411,9 +424,11 @@
         if (!data || !Array.isArray(data.list)) return;
         voiceSel.innerHTML = data.list
           .map((v) => `<option value="${v.id}">${v.name}</option>`)
-          .join("");
-        // 仅在列表确实包含已选音色时才回填，避免无效选择
-        if (saved && data.list.some((v) => v.id === saved)) voiceSel.value = saved;
+          .join("") + LOCAL_OPTION;
+        // 仅在列表确实包含已选音色（或本地）时才回填，避免无效选择
+        if (saved && (saved === "local" || data.list.some((v) => v.id === saved))) {
+          voiceSel.value = saved;
+        }
       })
       .catch(() => { /* 服务不可用时保持默认音色 */ });
   }
@@ -422,6 +437,10 @@
     const viaFile = location.protocol === "file:";
     checkServer().then((ok) => {
       if (ok) { onEdge(); return; }
+      if (currentVoiceId() === "local") {
+        setMode("local", "本地语音"); // 用户主动选择本地，无需探测恢复
+        return;
+      }
       if (viaFile) {
         setMode("local", "本机语音模式");
         statusEl.title = "当前是直接打开 index.html 文件。要使用晓伊等网络语音，请运行 start.bat 后访问 http://localhost:8000";
@@ -482,7 +501,19 @@
 
   voiceSel.addEventListener("change", () => {
     localStorage.setItem(VOICE_KEY, voiceSel.value);
-    if (mode === "edge") setMode("edge", currentVoiceName() + "语音 ✓");
+    if (isSpeaking) stop(); // 切换音色时停掉当前播放
+    if (voiceSel.value === "local") {
+      setMode("local", "本地语音");
+      return;
+    }
+    // 选择网络音色：服务可用则切回，不可用则保持本地并继续探测
+    checkServer().then((ok) => {
+      if (ok) onEdge();
+      else {
+        setMode("local", "本地语音（服务不可用）");
+        startRecovery();
+      }
+    });
     scheduleRewarm();
   });
 
