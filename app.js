@@ -1,11 +1,10 @@
-/* SimpleTTS 前端逻辑 v2：edge-tts（晓晓）优先，浏览器语音兜底，自动恢复
+/* SimpleTTS 前端逻辑 v3：edge-tts（晓晓）优先，浏览器语音兜底，自动恢复
  *
- * 主要改进：
- * - 运行时降级后每 8 秒自动探测服务，恢复后自动切回晓晓并同步短语
- * - edge 播放失败先重试一次（网络抖动），仍失败才降级
- * - 短语保存防抖（500ms）+ 串行队列，快速连续编辑只发一次
- * - 语速/音量/音色调整后防抖重新预热（800ms）
- * - 预热时页面隐藏自动让路
+ * v3 交互：
+ * - 主按钮"朗读 ⇄ 停止"一键切换，播放中显示正在朗读的内容条
+ * - 输入框一键清空、Esc 停止、添加短语后自动聚焦
+ * - 空短语列表提示
+ * v2 能力保留：自动恢复晓晓、播放失败重试、防抖保存与预热、参数变更重预热
  */
 (function () {
   "use strict";
@@ -13,10 +12,13 @@
   const $ = (id) => document.getElementById(id);
 
   const input        = $("input");
+  const clearBtn     = $("clearBtn");
   const speakBtn     = $("speakBtn");
-  const stopBtn      = $("stopBtn");
   const statusEl     = $("status");
+  const nowPlaying   = $("nowPlaying");
+  const nowPlayingText = $("nowPlayingText");
   const phrasesEl    = $("phrases");
+  const phrasesEmpty = $("phrasesEmpty");
   const phraseInput  = $("phraseInput");
   const addPhraseBtn = $("addPhraseBtn");
   const resetPhrasesBtn = $("resetPhrasesBtn");
@@ -33,6 +35,7 @@
   const REWARM_DEBOUNCE_MS = 800; // 参数调整后重新预热防抖
 
   let mode = "waiting";     // waiting | edge | local
+  let isSpeaking = false;   // 是否正在朗读
   let audio = null;         // 当前 Audio 对象
   let currentEl = null;     // 正在朗读的短语元素
   let retryTimer = null;    // 服务恢复探测定时器
@@ -61,6 +64,20 @@
     statusEl.className = "status " +
       (m === "edge" ? "status-ok" : m === "local" ? "status-warn" : "status-waiting");
     statusEl.textContent = msg;
+  }
+
+  // 朗读状态同步：主按钮切换 + 正在朗读提示条
+  function setSpeaking(on, text) {
+    isSpeaking = on;
+    speakBtn.classList.toggle("speaking", on);
+    speakBtn.textContent = on ? "⏹ 停止" : "🔊 朗读";
+    if (on) {
+      nowPlayingText.textContent = text;
+      nowPlaying.hidden = false;
+    } else {
+      nowPlaying.hidden = true;
+    }
+    if (!on) clearSpeaking();
   }
 
   function clearSpeaking() {
@@ -126,7 +143,7 @@
     u.volume = parseFloat(volumeEl.value);
     const v = pickZhVoice();
     if (v) u.voice = v;
-    u.onend = clearSpeaking;
+    u.onend = () => setSpeaking(false);
     window.speechSynthesis.speak(u);
   }
 
@@ -164,14 +181,15 @@
         else degrade();
       });
     };
-    a.onended = clearSpeaking;
+    a.onended = () => setSpeaking(false);
     a.play().catch(() => a.onerror && a.onerror());
   }
 
   function speak(text) {
     text = (text || input.value).trim();
     if (!text) return;
-    stop(); // 停掉上一句并清除旧高亮
+    stop(); // 停掉上一句并清除旧状态
+    setSpeaking(true, text); // 乐观显示"正在朗读"
     if (mode === "edge") playEdge(text, false);
     else playLocal(text);
   }
@@ -179,7 +197,7 @@
   function stop() {
     if (audio) { audio.pause(); audio = null; }
     if ("speechSynthesis" in window) window.speechSynthesis.cancel();
-    clearSpeaking();
+    setSpeaking(false);
   }
 
   /* ---------- 常用短语（服务端持久化 + 本地备份） ---------- */
@@ -255,6 +273,7 @@
     del.className = "del";
     del.textContent = "✕";
     del.title = "删除此短语";
+    del.setAttribute("aria-label", "删除短语：" + p);
     del.addEventListener("click", (e) => {
       e.stopPropagation();
       removePhrase(p);
@@ -268,6 +287,7 @@
   function renderPhrases() {
     phrasesEl.innerHTML = "";
     phrases.forEach((p) => phrasesEl.appendChild(makePhraseChip(p)));
+    phrasesEmpty.hidden = phrases.length > 0;
   }
 
   function addPhrase() {
@@ -282,10 +302,11 @@
       warmPhrases([v]); // 新短语立即预热，第一次点也快
     }
     phraseInput.value = "";
+    phraseInput.focus(); // 连续添加更顺手
   }
 
   function removePhrase(p) {
-    stop();
+    if (isSpeaking && currentEl && currentEl.textContent.includes(p)) stop();
     phrases = phrases.filter((x) => x !== p);
     edited = true;
     persistLocal(phrases);
@@ -358,14 +379,32 @@
 
   /* ---------- 事件 ---------- */
 
-  speakBtn.addEventListener("click", () => speak(input.value));
-  stopBtn.addEventListener("click", stop);
+  // 主按钮：空闲朗读 / 播放中停止
+  speakBtn.addEventListener("click", () => {
+    if (isSpeaking) stop();
+    else speak(input.value);
+  });
+
+  // Esc 停止朗读
+  document.addEventListener("keydown", (e) => {
+    if (e.key === "Escape") stop();
+  });
 
   input.addEventListener("keydown", (e) => {
     if (e.key === "Enter" && !e.shiftKey) {
       e.preventDefault();
       speak(input.value);
     }
+  });
+
+  // 清空输入
+  input.addEventListener("input", () => {
+    clearBtn.hidden = input.value.length === 0;
+  });
+  clearBtn.addEventListener("click", () => {
+    input.value = "";
+    clearBtn.hidden = true;
+    input.focus();
   });
 
   addPhraseBtn.addEventListener("click", addPhrase);

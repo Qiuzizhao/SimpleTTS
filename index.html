@@ -3,30 +3,39 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
-<meta name="theme-color" content="#0a7d52">
+<meta name="theme-color" content="#0e8a5f">
 <title>语音助手 · 不方便开口也能说话</title>
+<link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><text y='.9em' font-size='90'>🔊</text></svg>">
 <link rel="stylesheet" href="style.css">
 </head>
 <body>
 
 <header class="topbar">
   <h1>不方便开口？打字，我来帮你说话</h1>
-  <span id="status" class="status status-waiting" title="当前语音通道">连接中…</span>
+  <span id="status" class="status status-waiting" role="status" aria-live="polite">连接中…</span>
 </header>
 
 <main class="container">
 
-  <textarea id="input" rows="3" maxlength="500"
-            placeholder="请输入想说的话，回车即朗读…" aria-label="想说的话"></textarea>
-
-  <div class="controls">
-    <button id="speakBtn" class="btn btn-speak" type="button">🔊 朗读</button>
-    <button id="stopBtn" class="btn btn-stop" type="button">■ 停止</button>
+  <!-- 正在朗读提示条 -->
+  <div id="nowPlaying" class="now-playing" role="status" aria-live="polite" hidden>
+    <span class="wave" aria-hidden="true"></span>
+    <span id="nowPlayingText" class="now-playing-text"></span>
   </div>
 
+  <div class="input-wrap">
+    <textarea id="input" rows="3" maxlength="500"
+              placeholder="请输入想说的话，回车即朗读…" aria-label="想说的话"></textarea>
+    <button id="clearBtn" class="input-clear" type="button" title="清空输入" aria-label="清空输入" hidden>✕</button>
+  </div>
+
+  <!-- 主按钮：空闲=朗读，播放中=停止 -->
+  <button id="speakBtn" class="btn btn-speak" type="button">🔊 朗读</button>
+
   <section class="card">
-    <h2>常用短语 · 点击朗读</h2>
+    <h2><span aria-hidden="true">💬</span> 常用短语 · 点击朗读</h2>
     <div id="phrases" class="phrases"></div>
+    <p id="phrasesEmpty" class="phrases-empty" hidden>还没有短语，下面添加一条吧～</p>
     <div class="edit-row">
       <input id="phraseInput" type="text" maxlength="50" placeholder="添加常用短语，回车保存…" aria-label="添加常用短语">
       <button id="addPhraseBtn" class="btn btn-add" type="button">＋ 添加</button>
@@ -37,7 +46,7 @@
   </section>
 
   <section class="card">
-    <h2>语音设置</h2>
+    <h2><span aria-hidden="true">⚙️</span> 语音设置</h2>
     <div class="settings">
       <label class="setting">
         <span>语速</span>
