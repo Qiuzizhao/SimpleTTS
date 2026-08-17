@@ -1,6 +1,7 @@
 .venv/
 .tmp/
 cache/
+data/
 __pycache__/
 *.pyc
 .DS_Store

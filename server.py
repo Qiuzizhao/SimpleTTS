@@ -2,16 +2,28 @@
 """
 SimpleTTS 本地语音服务
 - 托管前端页面（index.html / style.css / app.js / phrases.js）
-- GET /api/tts    文字转语音（edge-tts，MP3，带内存缓存）
-- GET /api/voices 可选中文音色列表
-- GET /api/ping   健康检查（前端据此决定是否降级为浏览器语音）
+- GET  /api/tts      文字转语音（edge-tts，MP3，流式 + 磁盘/内存缓存）
+- GET  /api/voices   可选中文音色列表
+- GET  /api/phrases  读取常用短语（服务端持久化，多设备同步）
+- PUT  /api/phrases  保存常用短语（整表替换，单用户场景足够）
+- GET  /api/ping     健康检查（前端据此决定是否降级为浏览器语音）
+
+数据目录 data/：语音缓存（data/cache）+ 短语（data/phrases.json），
+Docker 部署时挂载该目录即可持久化。
 """
+import asyncio
 import hashlib
+import json
 import os
 import sys
 from pathlib import Path
 
 BASE_DIR = Path(__file__).resolve().parent
+DATA_DIR = BASE_DIR / "data"
+CACHE_DIR = DATA_DIR / "cache"
+PHRASES_FILE = DATA_DIR / "phrases.json"
+DATA_DIR.mkdir(parents=True, exist_ok=True)
+CACHE_DIR.mkdir(exist_ok=True)
 
 try:
     import edge_tts
@@ -29,15 +41,14 @@ PORT = int(os.environ.get("PORT", "8000"))
 DEFAULT_VOICE = "zh-CN-XiaoxiaoNeural"
 MAX_TEXT = 500
 CACHE_LIMIT = 256
+MAX_PHRASES = 200
 
 # 内存缓存: sha256(voice|rate|volume|text) -> mp3 bytes
 _cache: dict[str, bytes] = {}
-
-# 磁盘缓存目录（重启不丢，可随时删除重建）
-CACHE_DIR = BASE_DIR / "cache"
-CACHE_DIR.mkdir(exist_ok=True)
 # 浏览器缓存：同一 URL 由（文本+音色+语速+音量）决定，内容不变，可长期缓存
 CACHE_HEADERS = {"Cache-Control": "public, max-age=31536000, immutable"}
+
+_phrases_lock = asyncio.Lock()
 
 app = FastAPI(title="SimpleTTS")
 
@@ -64,6 +75,28 @@ def _trim_cache_dir(limit_bytes: int = 200 * 1024 * 1024) -> None:
                 pass
 
 
+def _load_phrases() -> list[str]:
+    try:
+        data = json.loads(PHRASES_FILE.read_text(encoding="utf-8"))
+    except (OSError, ValueError):
+        return []
+    if not isinstance(data, list):
+        return []
+    seen: list[str] = []
+    for item in data:
+        s = str(item).strip() if item is not None else ""
+        if s and s not in seen:
+            seen.append(s)
+    return seen
+
+
+async def _save_phrases(phrases: list[str]) -> None:
+    async with _phrases_lock:
+        PHRASES_FILE.write_text(
+            json.dumps(phrases, ensure_ascii=False, indent=2), encoding="utf-8"
+        )
+
+
 @app.get("/api/ping")
 async def ping():
     return {"ok": True, "voice": DEFAULT_VOICE}
@@ -82,6 +115,27 @@ async def list_voices():
             {"id": "zh-CN-YunxiaNeural", "name": "云夏（少年音）"},
         ],
     }
+
+
+@app.get("/api/phrases")
+async def get_phrases():
+    return {"phrases": _load_phrases()}
+
+
+@app.put("/api/phrases")
+async def put_phrases(payload: dict):
+    raw = payload.get("phrases")
+    if not isinstance(raw, list):
+        raise HTTPException(status_code=400, detail="phrases 必须是数组")
+    if len(raw) > MAX_PHRASES:
+        raise HTTPException(status_code=400, detail=f"短语数量过多（最多 {MAX_PHRASES} 条）")
+    cleaned: list[str] = []
+    for item in raw:
+        s = str(item).strip() if item is not None else ""
+        if s and s not in cleaned:
+            cleaned.append(s)
+    await _save_phrases(cleaned)
+    return {"ok": True, "count": len(cleaned)}
 
 
 @app.get("/api/tts")
@@ -152,6 +206,7 @@ def main():
             print(f"  局域网访问: http://{ip}:{PORT}（如被拦截请放行防火墙）")
         except Exception:
             pass
+    print(f"  数据目录: {DATA_DIR}（语音缓存 + 短语）")
     print("  按 Ctrl+C 停止")
     print("=" * 46)
     uvicorn.run(app, host=HOST, port=PORT, log_level="warning")

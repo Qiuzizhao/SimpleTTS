@@ -26,6 +26,11 @@
   let currentEl = null;   // 正在朗读的短语元素
   let retryTimer = null;  // 本地模式下的自动重连定时器
 
+  // 常用短语：服务端持久化（多设备同步）+ 本地 localStorage 离线备份
+  let phrases = [];
+  let edited = false;               // 服务端列表返回前本地是否已改动
+  let pushQueue = Promise.resolve(); // PUT 串行排队，避免乱序覆盖
+
   /* ---------- 工具 ---------- */
 
   // 滑块值 → edge-tts 参数格式（如 +20% / -10%）
@@ -117,9 +122,10 @@
     clearSpeaking();
   }
 
-  /* ---------- 常用短语（可增删、恢复默认，localStorage 持久化） ---------- */
+  /* ---------- 常用短语（服务端持久化 + 本地备份） ---------- */
 
-  function getPhrases() {
+  // 启动时先从本机读（离线也能用），随后用服务端列表覆盖（多设备同步）
+  function loadLocalPhrases() {
     const saved = loadJSON(PHRASES_KEY);
     if (Array.isArray(saved) && saved.length) return saved;
     let list = [...DEFAULT_PHRASES];
@@ -128,12 +134,43 @@
     if (Array.isArray(legacy)) {
       for (const p of legacy) if (!list.includes(p)) list.push(p);
     }
-    savePhrases(list);
     return list;
   }
 
-  function savePhrases(list) {
+  function persistLocal(list) {
     localStorage.setItem(PHRASES_KEY, JSON.stringify(list));
+  }
+
+  // 整表同步到服务端；串行排队，避免快速连续编辑时乱序覆盖
+  function pushToServer(list) {
+    pushQueue = pushQueue.then(() =>
+      fetch("/api/phrases", {
+        method: "PUT",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ phrases: list }),
+      }).catch(() => { /* 离线时保留本地，下次编辑会自动再同步 */ })
+    );
+  }
+
+  function initPhrasesFromServer() {
+    fetch("/api/phrases")
+      .then((r) => r.json())
+      .then((d) => {
+        if (!d || !Array.isArray(d.phrases)) return;
+        if (edited) {
+          pushToServer(phrases); // 服务端列表返回前本地已改动：以本地为准并同步上去
+          return;
+        }
+        if (d.phrases.length) {
+          phrases = d.phrases;
+          persistLocal(phrases); // 留本地备份
+          renderPhrases();
+          warmPhrases(phrases);
+        } else {
+          pushToServer(phrases); // 服务端为空：把当前列表迁移上去
+        }
+      })
+      .catch(() => { /* 服务不可用：继续用本地列表 */ });
   }
 
   function makePhraseChip(p) {
@@ -166,18 +203,18 @@
   }
 
   function renderPhrases() {
-    const list = getPhrases();
     phrasesEl.innerHTML = "";
-    list.forEach((p) => phrasesEl.appendChild(makePhraseChip(p)));
+    phrases.forEach((p) => phrasesEl.appendChild(makePhraseChip(p)));
   }
 
   function addPhrase() {
     const v = phraseInput.value.trim();
     if (!v) return;
-    const list = getPhrases();
-    if (!list.includes(v)) {
-      list.push(v);
-      savePhrases(list);
+    if (!phrases.includes(v)) {
+      phrases.push(v);
+      edited = true;
+      persistLocal(phrases);
+      pushToServer(phrases);
       renderPhrases();
       warmPhrases([v]); // 新短语立即预热，第一次点也快
     }
@@ -186,16 +223,22 @@
 
   function removePhrase(p) {
     stop();
-    savePhrases(getPhrases().filter((x) => x !== p));
+    phrases = phrases.filter((x) => x !== p);
+    edited = true;
+    persistLocal(phrases);
+    pushToServer(phrases);
     renderPhrases();
   }
 
   function resetPhrases() {
     if (!confirm("确定恢复默认短语吗？当前列表将被替换。")) return;
     stop();
-    savePhrases([...DEFAULT_PHRASES]);
+    phrases = [...DEFAULT_PHRASES];
+    edited = true;
+    persistLocal(phrases);
+    pushToServer(phrases);
     renderPhrases();
-    warmPhrases(getPhrases());
+    warmPhrases(phrases);
   }
 
   /* ---------- 常用语语音预热 ---------- */
@@ -247,7 +290,7 @@
     const viaFile = location.protocol === "file:";
     const onOk = () => {
       setMode("edge", "晓晓语音 ✓");
-      warmPhrases(getPhrases()); // 连接稳定后后台预热常用语
+      warmPhrases(phrases); // 连接稳定后后台预热常用语
     };
     const onFail = () => {
       if (viaFile) {
@@ -307,7 +350,9 @@
     window.speechSynthesis.onvoiceschanged = () => {};
   }
 
+  phrases = loadLocalPhrases();
   renderPhrases();
   initVoices();
   initStatus();
+  initPhrasesFromServer();
 })();
