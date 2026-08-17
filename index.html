@@ -1,0 +1,66 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<meta name="theme-color" content="#0a7d52">
+<title>语音助手 · 不方便开口也能说话</title>
+<link rel="stylesheet" href="style.css">
+</head>
+<body>
+
+<header class="topbar">
+  <h1>不方便开口？打字，我来帮你说话</h1>
+  <span id="status" class="status status-waiting" title="当前语音通道">连接中…</span>
+</header>
+
+<main class="container">
+
+  <textarea id="input" rows="3" maxlength="500"
+            placeholder="请输入想说的话，回车即朗读…" aria-label="想说的话"></textarea>
+
+  <div class="controls">
+    <button id="speakBtn" class="btn btn-speak" type="button">🔊 朗读</button>
+    <button id="stopBtn" class="btn btn-stop" type="button">■ 停止</button>
+  </div>
+
+  <section class="card">
+    <h2>常用短语 · 点击朗读</h2>
+    <div id="phrases" class="phrases"></div>
+    <div class="edit-row">
+      <input id="phraseInput" type="text" maxlength="50" placeholder="添加常用短语，回车保存…" aria-label="添加常用短语">
+      <button id="addPhraseBtn" class="btn btn-add" type="button">＋ 添加</button>
+    </div>
+    <div class="edit-actions">
+      <button id="resetPhrasesBtn" class="btn-link" type="button">恢复默认短语</button>
+    </div>
+  </section>
+
+  <section class="card">
+    <h2>语音设置</h2>
+    <div class="settings">
+      <label class="setting">
+        <span>语速</span>
+        <input id="rate" type="range" min="0.5" max="1.5" step="0.05" value="1.0">
+        <output id="rateVal">1.00</output>
+      </label>
+      <label class="setting">
+        <span>音量</span>
+        <input id="volume" type="range" min="0" max="1" step="0.05" value="1.0">
+        <output id="volumeVal">100%</output>
+      </label>
+      <label class="setting">
+        <span>音色</span>
+        <select id="voiceSel" aria-label="选择音色"></select>
+      </label>
+    </div>
+  </section>
+
+  <p class="footnote">联网时使用微软"晓晓"神经语音；断网自动切换本机语音。<br>常用短语保存在本机浏览器；语音合成结果缓存于本机，重复朗读秒出。</p>
+
+</main>
+
+<script src="phrases.js"></script>
+<script src="app.js"></script>
+</body>
+</html>
