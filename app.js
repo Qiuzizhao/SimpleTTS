@@ -95,17 +95,13 @@
     statusEl.textContent = msg;
   }
 
-  // 朗读状态同步：主按钮切换 + 正在朗读提示条
+  // 朗读状态同步：主按钮切换 + 常驻提示条切换状态（高度不变，无布局抖动）
   function setSpeaking(on, text) {
     isSpeaking = on;
     speakBtn.classList.toggle("speaking", on);
     speakBtn.textContent = on ? "⏹ 停止" : "🔊 朗读";
-    if (on) {
-      nowPlayingText.textContent = text;
-      nowPlaying.hidden = false;
-    } else {
-      nowPlaying.hidden = true;
-    }
+    nowPlaying.classList.toggle("playing", on);
+    nowPlayingText.textContent = on ? text : "点击短语或输入文字开始朗读";
     if (!on) clearSpeaking();
   }
 

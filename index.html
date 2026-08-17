@@ -6,7 +6,7 @@
 <meta name="theme-color" content="#0e8a5f">
 <title>语音助手 · 打字，我来帮你说话</title>
 <link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><text y='.9em' font-size='90'>🔊</text></svg>">
-<link rel="stylesheet" href="style.css?v=3">
+<link rel="stylesheet" href="style.css?v=4">
 </head>
 <body>
 
@@ -17,10 +17,10 @@
 
 <main class="container">
 
-  <!-- 正在朗读提示条 -->
-  <div id="nowPlaying" class="now-playing" role="status" aria-live="polite" hidden>
+  <!-- 正在朗读提示条（常驻，空闲/播放同高，避免布局抖动） -->
+  <div id="nowPlaying" class="now-playing" role="status" aria-live="polite">
     <span class="wave" aria-hidden="true"></span>
-    <span id="nowPlayingText" class="now-playing-text"></span>
+    <span id="nowPlayingText" class="now-playing-text">点击短语或输入文字开始朗读</span>
   </div>
 
   <div class="input-wrap">
@@ -74,7 +74,7 @@
 
 </main>
 
-<script src="phrases.js?v=3"></script>
-<script src="app.js?v=3"></script>
+<script src="phrases.js?v=4"></script>
+<script src="app.js?v=4"></script>
 </body>
 </html>

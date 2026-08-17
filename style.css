@@ -66,33 +66,53 @@ body {
   gap: 14px;
 }
 
-/* 正在朗读提示条 */
+/* 正在朗读提示条（常驻：空闲与播放状态同一高度，避免布局抖动） */
 .now-playing {
   display: flex;
   align-items: center;
   gap: 10px;
-  background: var(--primary-soft);
-  border: 1px solid rgba(14, 138, 95, .28);
-  color: var(--primary-2);
+  border: 1px solid var(--border);
+  background: #fff;
+  color: var(--muted);
   border-radius: 12px;
   padding: 10px 14px;
+  transition: background .2s, color .2s, border-color .2s;
 }
-.now-playing[hidden] { display: none; }
+.now-playing.playing {
+  background: var(--primary-soft);
+  border-color: rgba(14, 138, 95, .28);
+  color: var(--primary-2);
+}
 .wave {
   position: relative;
   width: 16px;
   height: 16px;
   flex: none;
 }
-.wave::before, .wave::after {
+/* 空闲：静态小圆点 */
+.wave::before {
+  content: "";
+  position: absolute;
+  inset: 4px;
+  border-radius: 50%;
+  background: currentColor;
+  opacity: .45;
+}
+/* 播放中：圆点变声波动画 */
+.now-playing.playing .wave::before {
+  inset: 0;
+  opacity: 0;
+  animation: wave 1.2s ease-out infinite;
+}
+.now-playing.playing .wave::after {
   content: "";
   position: absolute;
   inset: 0;
   border-radius: 50%;
   background: currentColor;
   animation: wave 1.2s ease-out infinite;
+  animation-delay: .6s;
 }
-.wave::after { animation-delay: .6s; }
 @keyframes wave {
   0%   { transform: scale(.35); opacity: .75; }
   100% { transform: scale(1.7); opacity: 0; }
